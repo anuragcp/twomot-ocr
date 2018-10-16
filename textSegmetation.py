@@ -6,7 +6,7 @@ from cv2 import boundingRect, countNonZero, cvtColor, drawContours, findContours
 try:
     large = imread('./text_data/novel1.jpg')
 except cv2.error as e:
-    print("Could not load data fome directory")
+    print("Could not load data from directory")
 
 # downsample and use it for processing
 rgb = pyrDown(large)
