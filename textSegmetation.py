@@ -1,16 +1,35 @@
-import cv2 as cv
+from PIL import Image
+import cv2
 import numpy as np
-import os
+from cv2 import boundingRect, countNonZero, cvtColor, drawContours, findContours, getStructuringElement, imread, morphologyEx, pyrDown, rectangle, threshold
 
-#PATH_TO_FILE = "./text_data"
+try:
+    large = imread('./text_data/novel1.jpg')
+except cv2.error as e:
+    print("Could not load data fome directory")
 
-img = cv.imread("./text_data/ArialA.png", 0)
-print("Image loaded")
-ret, img_otsu = cv.threshold(img, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
-kernel = np.ones((5,5), np.uint8)
-img_erosion = cv.erode(img, kernel, iterations=1)
-img_dilation = cv.dilate(img, kernel, iterations=1)
-cv.namedWindow('image', cv.WINDOW_AUTOSIZE)
-cv.imshow('image', img_dilation)
-cv.waitKey(0)
-cv.destroyAllWindows()
+# downsample and use it for processing
+rgb = pyrDown(large)
+# apply grayscale
+small = cvtColor(rgb, cv2.COLOR_BGR2GRAY)
+# morphological gradient
+morph_kernel = getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+grad = morphologyEx(small, cv2.MORPH_GRADIENT, morph_kernel)
+# binarize
+_, bw = threshold(src=grad, thresh=0, maxval=255, type=cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+morph_kernel = getStructuringElement(cv2.MORPH_RECT, (9, 1))
+# connect horizontally oriented regions
+connected = morphologyEx(bw, cv2.MORPH_CLOSE, morph_kernel)
+mask = np.zeros(bw.shape, np.uint8)
+# find contours
+im2, contours, hierarchy = findContours(connected, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+# filter contours
+for idx in range(0, len(hierarchy[0])):
+    rect = x, y, rect_width, rect_height = boundingRect(contours[idx])
+    # fill the contour
+    mask = drawContours(mask, contours, idx, (255, 255, 2555), cv2.FILLED)
+    # ratio of non-zero pixels in the filled region
+    r = float(countNonZero(mask)) / (rect_width * rect_height)
+    if r > 0.45 and rect_height > 8 and rect_width > 8:
+        rgb = rectangle(rgb, (x, y+rect_height), (x+rect_width, y), (0,255,0),1)
+Image.fromarray(rgb).show()
